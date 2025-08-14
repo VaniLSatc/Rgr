@@ -8,66 +8,82 @@ using namespace std;
 
 void Caesar_Cipher(int console_answer) {
 	if (console_answer == 1) { //Шифр цезаря. Процесс шифрования исходного текста из файла
-		ifstream fin("InputText.txt");
-		ofstream fout("OutputText.txt");
-		cout << "Придумайте пароль. Его нужно будет указать при расшифровке для получения доступа к данным. Не потеряйте его!\n";
-		string pswrd;
-		cin >> pswrd;
-		cout << "Также чтобы зашифровать текст вам понадобится ключ.\nЕго значение вы также должны запомнить! Введите значение ключа(положительное целое число): ";
-		int n;
-		cin >> n;
+		string inputFile;
+		cout << "Введите название файла, который необходимо зашифровать: ";
+		cin >> inputFile; 
 
-		for (char i : pswrd) {
-			fout << char(i + n); //Запись зашифрованного пароля в файл
+		ifstream fin(inputFile, ios::binary);
+		ofstream fout("EncruptedFile.bin", ios::binary);
+
+		if (!fin.is_open() || !fout.is_open()) {
+			cerr << "Ошибка открытия файла для чтения" << endl;
+			exit(0);
 		}
-		fout << " ";
-		fout << char(n + n); // Запись ключа в зашифрованном виде в файл
-		fout << " ";
-		string txt;
-		while (fin >> txt) {
-			for (char i : txt) {
-				fout << char(i + n);
-			}
-			fout << " ";
+
+		cout << "Придумайте пароль. Его нужно будет указать при расшифровке для получения доступа к данным. Не потеряйте его!\n";
+		string password_;
+		cin >> password_;
+		cout << "Также для шифрования вам понадобится ключ.\nЕго значение вы должны запомнить! Введите значение ключа: ";
+		int caesarKey;
+		cin >> caesarKey;
+
+		for (char i : password_) {
+			if (i > 255) fout.put((i + caesarKey) % 256);
+			else fout.put(char(i + caesarKey));
 		}
+
+		fout << " "; // Неккоректно дешифруется, нужно считывать пароль байтами
+
+		char text;
+		while (fin.get(text)) {
+			if (text > 255) fout.put((text + caesarKey) % 256);
+			else fout.put(char(text + caesarKey));
+		}
+
 		fin.close();
 		fout.close();
+
 	}
 	if (console_answer == 2) {//Шифр цезаря. Процесс дешифрования исходного текста из файла
 		cout << "Вы пытаетесь прочитать текст, защищённый шифром Цезаря. Введите ключ: ";
-		int n;
-		cin >> n;
-		//
+		int caesarKey;
+		cin >> caesarKey;
+
+		string inputFile;
+		cout << "Введите название файла, который необходимо расшифровать: ";
+		cin >> inputFile;
 
 		//Расшифровываем пароль с указанным ключем
-		ifstream fin("InputText.txt");
-		string fpswrd, decrypt_fpswrd; //Создаём переменные для приёма пароля из файла и для хранения расшифрованного пароля
-		fin >> fpswrd; //Первое слово в зашифрованном тексте(если его никто не менял) - зашифрованный пароль
-		for (char i : fpswrd) {
-			decrypt_fpswrd += char(i - n);
+		ifstream fin(inputFile, ios::binary);
+		string EncryptPassword_, DecryptPassword_; //Создаём переменные для приёма пароля из файла и для хранения расшифрованного пароля
+		fin >> EncryptPassword_; //Первое слово в зашифрованном тексте(если его никто не менял) - зашифрованный пароль
+		for (char i : EncryptPassword_) {
+			DecryptPassword_ += char(i - caesarKey);
 		}
+
 		cout << "Введите пароль: ";
-		string pswrd;
-		cin >> pswrd;
+		string userTryPassword_;
+		cin >> userTryPassword_;
+
 		for (int i = 0; i < 3; i++) {
-			if (pswrd == decrypt_fpswrd) { cout << "Пароль верный!\n"; break; }
+			if (userTryPassword_ == DecryptPassword_) { cout << "Пароль верный!\n"; break; }
 			if (i == 3) { cout << "Попытки кончились."; exit(0); }
 			cout << "Неверный пароль, попробуйте ещё раз. Попыток осталось: " << 3 - i << endl;
 			cout << "Введите пароль: ";
-			cin >> pswrd;
+			cin >> userTryPassword_;
 		}
 
-		//
+		string outputFile;
+		cout << "Введите название расшифрованного файла: ";
+		cin >> outputFile;
+		ofstream fout(outputFile, ios::binary);
 
-		ofstream fout("OutputText.txt");
-		string txt;
-		fin >> txt; // Считали значение ключа, чтобы убрать его из финального текста
-		while (fin >> txt) {
-			for (char i : txt) {
-				fout << char(i - 3);
-			}
-			fout << " ";
+		char text;
+		while (fin.get(text)) {
+			if (text > 255) fout.put((text - caesarKey) % 256);
+			else fout.put(char(text - caesarKey));
 		}
+
 		fin.close();
 		fout.close();
 	}
@@ -78,19 +94,11 @@ int main()
 	//Блок 1.Блок для записи исходного текста в файл
 	setlocale(LC_ALL, "Russian");
 	cout << "Здравствуйте! Вы используете программу шифровки/дешифровки текста.\nВведите текст и выберите дальнейшие действия.\nТекст:";
-	string text;
-	getline(cin, text);
-	ofstream fout("InputText.txt");
-	for (auto i : text) {
-		fout << i;
-	}
-	fout.close();
-	text = "";
 
 	//
 
 	//Блок 2.Блок для выбора действия. Выбор алгоритма шифрования.
-	cout << "Исходный текст записан. Выберите метод шифрования.\n1) Шифр Цезаря\n2) Шифр чего там\n3) Шифр двойной табличной перестановки\n";
+	cout << "Исходный текст записан. Выберите метод шифрования.\n1) Шифр Цезаря\n2) Шифр XOR\n3) Шифр двойной табличной перестановки\n";
 	int console_answer;
 	cin >> console_answer;
 	while (console_answer != 1 && console_answer != 2 && console_answer != 3) {
