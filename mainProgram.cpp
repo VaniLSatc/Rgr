@@ -2,95 +2,30 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
-#include <locale>
+#include "Windows.h"
+
+// Сделать этот проект многофайловым
+// Добавить шифрование с консоли
+// Сделать менюшку красивой, добавить очистку консоли
+// Запустить на линуксе
+
 
 using namespace std;
 
-void Caesar_Cipher(int console_answer) {
-	if (console_answer == 1) { //Шифр цезаря. Процесс шифрования исходного текста из файла
-		ifstream fin("InputText.txt");
-		ofstream fout("OutputText.txt");
-		cout << "Придумайте пароль. Его нужно будет указать при расшифровке для получения доступа к данным. Не потеряйте его!\n";
-		string pswrd;
-		cin >> pswrd;
-		cout << "Также чтобы зашифровать текст вам понадобится ключ.\nЕго значение вы также должны запомнить! Введите значение ключа(положительное целое число): ";
-		int n;
-		cin >> n;
-
-		for (char i : pswrd) {
-			fout << char(i + n); //Запись зашифрованного пароля в файл
-		}
-		fout << " ";
-		fout << char(n + n); // Запись ключа в зашифрованном виде в файл
-		fout << " ";
-		string txt;
-		while (fin >> txt) {
-			for (char i : txt) {
-				fout << char(i + n);
-			}
-			fout << " ";
-		}
-		fin.close();
-		fout.close();
-	}
-	if (console_answer == 2) {//Шифр цезаря. Процесс дешифрования исходного текста из файла
-		cout << "Вы пытаетесь прочитать текст, защищённый шифром Цезаря. Введите ключ: ";
-		int n;
-		cin >> n;
-		//
-
-		//Расшифровываем пароль с указанным ключем
-		ifstream fin("InputText.txt");
-		string fpswrd, decrypt_fpswrd; //Создаём переменные для приёма пароля из файла и для хранения расшифрованного пароля
-		fin >> fpswrd; //Первое слово в зашифрованном тексте(если его никто не менял) - зашифрованный пароль
-		for (char i : fpswrd) {
-			decrypt_fpswrd += char(i - n);
-		}
-		cout << "Введите пароль: ";
-		string pswrd;
-		cin >> pswrd;
-		for (int i = 0; i < 3; i++) {
-			if (pswrd == decrypt_fpswrd) { cout << "Пароль верный!\n"; break; }
-			if (i == 3) { cout << "Попытки кончились."; exit(0); }
-			cout << "Неверный пароль, попробуйте ещё раз. Попыток осталось: " << 3 - i << endl;
-			cout << "Введите пароль: ";
-			cin >> pswrd;
-		}
-
-		//
-
-		ofstream fout("OutputText.txt");
-		string txt;
-		fin >> txt; // Считали значение ключа, чтобы убрать его из финального текста
-		while (fin >> txt) {
-			for (char i : txt) {
-				fout << char(i - 3);
-			}
-			fout << " ";
-		}
-		fin.close();
-		fout.close();
-	}
-}
+typedef void (*CaesarCipher)(int);
+typedef void (*XORCipher)(int);
+typedef void (*DTPCipher)(int);
 
 int main()
 {
 	//Блок 1.Блок для записи исходного текста в файл
 	setlocale(LC_ALL, "Russian");
 	cout << "Здравствуйте! Вы используете программу шифровки/дешифровки текста.\nВведите текст и выберите дальнейшие действия.\nТекст:";
-	string text;
-	getline(cin, text);
-	ofstream fout("InputText.txt");
-	for (auto i : text) {
-		fout << i;
-	}
-	fout.close();
-	text = "";
 
 	//
 
 	//Блок 2.Блок для выбора действия. Выбор алгоритма шифрования.
-	cout << "Исходный текст записан. Выберите метод шифрования.\n1) Шифр Цезаря\n2) Шифр чего там\n3) Шифр двойной табличной перестановки\n";
+	cout << "Исходный текст записан. Выберите метод шифрования.\n1) Шифр Цезаря\n2) Шифр XOR\n3) Шифр двойной табличной перестановки\n";
 	int console_answer;
 	cin >> console_answer;
 	while (console_answer != 1 && console_answer != 2 && console_answer != 3) {
@@ -102,20 +37,107 @@ int main()
 
 	// Блок 3. Запуск функции шифрования/дешифрования.
 	string password;
-	if (console_answer == 1) {
-		cout << "Вы выбрали шифрование текста методом Цезаря.\nВы хотите зашифровать или расшифровать текст?\n1) Зашифровать\n2) Расшифровать\n";
+	
+	
+	switch (console_answer)
+	{
+	case 1:
+	{
+		cout << "Вы выбрали шифрование методом Цезаря.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
 		cin >> console_answer;
+
 		while (console_answer != 1 && console_answer != 2) {
 			cout << "Неккоректный выбор, введите ещё раз:\n";
 			cin >> console_answer;
 		}
-		Caesar_Cipher(console_answer);
-		cout << "Успешно! Зашифрованный текст находится в папке проекта в файле 'OutputText.txt'";
+
+		HMODULE loadCesar = LoadLibrary(L"CaesarCipherDLL.dll"); // Загружаем DLL
+		if (!loadCesar) {
+			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			return 1;
+		}
+
+		// Получаем указатель на функцию
+		CaesarCipher Caesar_Cipher = (CaesarCipher)GetProcAddress(loadCesar, "Caesar_Cipher");
+		if (!Caesar_Cipher) {
+			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			FreeLibrary(loadCesar);
+			return 1;
+		}
+
+		Caesar_Cipher(console_answer); // Вызываем функцию
+
+		FreeLibrary(loadCesar); // Выгружаем DLL
+
+		cout << "Успешно! Зашифрованный текст находится в папке проекта";
+
+		return 0;
 	}
-	if (console_answer == 2) {
-		cout << "Разрабатывается хыхы";
+
+	case 2:
+	{
+		cout << "Вы выбрали шифрование методом XOR.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
+		cin >> console_answer;
+
+		while (console_answer != 1 && console_answer != 2) {
+			cout << "Неккоректный выбор, введите ещё раз:\n";
+			cin >> console_answer;
+		}
+
+		HMODULE loadXOR = LoadLibrary(L"XORCipherDLL.dll"); // Загружаем DLL
+		if (!loadXOR) {
+			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			return 1;
+		}
+
+		// Получаем указатель на функцию
+		XORCipher XOR_Cipher = (XORCipher)GetProcAddress(loadXOR, "XOR_Cipher");
+		if (!XOR_Cipher) {
+			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			FreeLibrary(loadXOR);
+			return 1;
+		}
+
+		XOR_Cipher(console_answer); // Вызываем функцию
+
+		FreeLibrary(loadXOR); // Выгружаем DLL
+
+		cout << "Успешно! Зашифрованный текст находится в папке проекта";
+
+		return 0;
 	}
-	if (console_answer == 3) {
-		cout << "Разрабатывается хыхы";
+	case 3:
+	{
+		cout << "Вы выбрали шифрование методом двойной табличной перестановки.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
+		cin >> console_answer;
+
+		while (console_answer != 1 && console_answer != 2) {
+			cout << "Неккоректный выбор, введите ещё раз:\n";
+			cin >> console_answer;
+		}
+
+		HMODULE loadDTP = LoadLibrary(L"DoubleTabularPermutation.dll"); // Загружаем DLL
+		if (!loadDTP) {
+			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			return 1;
+		}
+
+		// Получаем указатель на функцию
+		DTPCipher DTP_Cipher = (DTPCipher)GetProcAddress(loadDTP, "doubleTablePermutationCipher");
+		if (!DTP_Cipher) {
+			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			FreeLibrary(loadDTP);
+			return 1;
+		}
+
+		DTP_Cipher(console_answer); // Вызываем функцию
+
+		FreeLibrary(loadDTP); // Выгружаем DLL
+
+		cout << "Успешно! Зашифрованный текст находится в папке проекта";
+
+		return 0;
+	}
+
 	}
 }
