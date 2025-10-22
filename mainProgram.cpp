@@ -1,14 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <filesystem>
-#include "Windows.h"
-
-// Сделать этот проект многофайловым
-// Добавить шифрование с консоли
-// Сделать менюшку красивой, добавить очистку консоли
-// Запустить на линуксе
-
+#include <cstdlib>
+#include "Platform.h"
 
 using namespace std;
 
@@ -16,128 +10,153 @@ typedef void (*CaesarCipher)(int);
 typedef void (*XORCipher)(int);
 typedef void (*DTPCipher)(int);
 
-int main()
-{
-	//Блок 1.Блок для записи исходного текста в файл
-	setlocale(LC_ALL, "Russian");
-	cout << "Здравствуйте! Вы используете программу шифровки/дешифровки текста.\nВведите текст и выберите дальнейшие действия.\nТекст:";
+namespace ConsoleUtils {
+    void clearConsole() {
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+    }
 
-	//
+    void showError(const char* message) {
+    #ifdef _WIN32
+        MessageBoxA(NULL, message, "Error", MB_OK);
+    #else
+        cout << "Ошибка: " << message << endl;
+    #endif
+    }
+}
 
-	//Блок 2.Блок для выбора действия. Выбор алгоритма шифрования.
-	cout << "Исходный текст записан. Выберите метод шифрования.\n1) Шифр Цезаря\n2) Шифр XOR\n3) Шифр двойной табличной перестановки\n";
-	int console_answer;
-	cin >> console_answer;
-	while (console_answer != 1 && console_answer != 2 && console_answer != 3) {
-		cout << "Неккоректный выбор, введите ещё раз:\n";
-		cin >> console_answer;
-	}
+enum class EncryptionMethod {
+    Caesar,
+    XOR,
+    DoubleTabularPermutation,
+    Exit
+};
 
-	//
+enum class Action {
+    Encrypt,
+    Decrypt
+};
 
-	// Блок 3. Запуск функции шифрования/дешифрования.
-	string password;
-	
-	
-	switch (console_answer)
-	{
-	case 1:
-	{
-		cout << "Вы выбрали шифрование методом Цезаря.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
-		cin >> console_answer;
+void methodChoice(const int input, EncryptionMethod& choice) {
+    switch (input) {
+        case 1: choice = EncryptionMethod::Caesar; break;
+        case 2: choice = EncryptionMethod::XOR; break;
+        case 3: choice = EncryptionMethod::DoubleTabularPermutation; break;
+        case 4: choice = EncryptionMethod::Exit; break;
+        default: break;
+    }
+}
 
-		while (console_answer != 1 && console_answer != 2) {
-			cout << "Неккоректный выбор, введите ещё раз:\n";
-			cin >> console_answer;
-		}
+void actionChoice(const int input, Action& choice) {
+    if (input == 1) choice = Action::Encrypt;
+    else if (input == 2) choice = Action::Decrypt;
+}
 
-		HMODULE loadCesar = LoadLibrary(L"CaesarCipherDLL.dll"); // Загружаем DLL
-		if (!loadCesar) {
-			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			return 1;
-		}
+int main() {
+    setlocale(LC_ALL, "Russian");
+    
+    while (true) {
+        ConsoleUtils::clearConsole();
+        cout << "Здравствуйте! Вы используете программу шифровки/дешифровки текста.\n";
+        cout << "Выберите метод шифрования:\n";
+        cout << "1) Шифр Цезаря\n";
+        cout << "2) Шифр XOR\n";
+        cout << "3) Шифр двойной табличной перестановки\n";
+        cout << "4) Выход\n";
+        
+        int console_answer;
+        cin >> console_answer;
+        
+        EncryptionMethod method;
+        methodChoice(console_answer, method);
+        
+        if (method == EncryptionMethod::Exit) break;
+        
+        if (console_answer < 1 || console_answer > 3) {
+            cout << "Некорректный выбор!\n";
+            continue;
+        }
+        
+        cout << "Вы хотите зашифровать или расшифровать данные?\n";
+        cout << "1) Зашифровать\n2) Расшифровать\n";
+        int action_input;
+        cin >> action_input;
+        
+        Action action;
+        actionChoice(action_input, action);
+        
+        if (action_input != 1 && action_input != 2) {
+            cout << "Некорректный выбор!\n";
+            continue;
+        }
 
-		// Получаем указатель на функцию
-		CaesarCipher Caesar_Cipher = (CaesarCipher)GetProcAddress(loadCesar, "Caesar_Cipher");
-		if (!Caesar_Cipher) {
-			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			FreeLibrary(loadCesar);
-			return 1;
-		}
-
-		Caesar_Cipher(console_answer); // Вызываем функцию
-
-		FreeLibrary(loadCesar); // Выгружаем DLL
-
-		cout << "Успешно! Зашифрованный текст находится в папке проекта";
-
-		return 0;
-	}
-
-	case 2:
-	{
-		cout << "Вы выбрали шифрование методом XOR.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
-		cin >> console_answer;
-
-		while (console_answer != 1 && console_answer != 2) {
-			cout << "Неккоректный выбор, введите ещё раз:\n";
-			cin >> console_answer;
-		}
-
-		HMODULE loadXOR = LoadLibrary(L"XORCipherDLL.dll"); // Загружаем DLL
-		if (!loadXOR) {
-			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			return 1;
-		}
-
-		// Получаем указатель на функцию
-		XORCipher XOR_Cipher = (XORCipher)GetProcAddress(loadXOR, "XOR_Cipher");
-		if (!XOR_Cipher) {
-			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			FreeLibrary(loadXOR);
-			return 1;
-		}
-
-		XOR_Cipher(console_answer); // Вызываем функцию
-
-		FreeLibrary(loadXOR); // Выгружаем DLL
-
-		cout << "Успешно! Зашифрованный текст находится в папке проекта";
-
-		return 0;
-	}
-	case 3:
-	{
-		cout << "Вы выбрали шифрование методом двойной табличной перестановки.\nВы хотите зашифровать или расшифровать данные?\n1) Зашифровать\n2) Расшифровать\n";
-		cin >> console_answer;
-
-		while (console_answer != 1 && console_answer != 2) {
-			cout << "Неккоректный выбор, введите ещё раз:\n";
-			cin >> console_answer;
-		}
-
-		HMODULE loadDTP = LoadLibrary(L"DoubleTabularPermutation.dll"); // Загружаем DLL
-		if (!loadDTP) {
-			MessageBox(NULL, L"DLL not found!", L"Error", MB_OK);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			return 1;
-		}
-
-		// Получаем указатель на функцию
-		DTPCipher DTP_Cipher = (DTPCipher)GetProcAddress(loadDTP, "doubleTablePermutationCipher");
-		if (!DTP_Cipher) {
-			MessageBox(NULL, L"Function not found!", L"Error", MB_OK); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			FreeLibrary(loadDTP);
-			return 1;
-		}
-
-		DTP_Cipher(console_answer); // Вызываем функцию
-
-		FreeLibrary(loadDTP); // Выгружаем DLL
-
-		cout << "Успешно! Зашифрованный текст находится в папке проекта";
-
-		return 0;
-	}
-
-	}
+        LIB_HANDLE library = nullptr;
+        const char* libName = "";
+        
+        switch (method) {
+        case EncryptionMethod::Caesar:
+        #ifdef _WIN32
+            libName = "CaesarCipherDLL.dll";
+        #else
+            libName = "./libCaesarCipher.so";
+        #endif
+            break;
+        case EncryptionMethod::XOR:
+        #ifdef _WIN32
+            libName = "XORCipherDLL.dll";
+        #else
+            libName = "./libXORCipher.so";
+        #endif
+            break;
+        case EncryptionMethod::DoubleTabularPermutation:
+        #ifdef _WIN32
+            libName = "DoubleTabularPermutation.dll";
+        #else
+            libName = "./libDoubleTabularPermutation.so";
+        #endif
+            break;
+        default:
+            break;
+        }
+        
+        library = LOAD_LIB(libName);
+        if (!library) {
+            ConsoleUtils::showError("Библиотека не найдена!");
+            continue;
+        }
+        
+        // Вызов соответствующей функции
+        int action_code = (action == Action::Encrypt) ? 1 : 2;
+        
+        switch (method) {
+        case EncryptionMethod::Caesar: {
+            CaesarCipher func = (CaesarCipher)GET_PROC(library, "Caesar_Cipher");
+            if (func) func(action_code);
+            break;
+        }
+        case EncryptionMethod::XOR: {
+            XORCipher func = (XORCipher)GET_PROC(library, "XOR_Cipher");
+            if (func) func(action_code);
+            break;
+        }
+        case EncryptionMethod::DoubleTabularPermutation: {
+            DTPCipher func = (DTPCipher)GET_PROC(library, "doubleTablePermutationCipher");
+            if (func) func(action_code);
+            break;
+        }
+        default:
+            break;
+        }
+        
+        if (library) FREE_LIB(library);
+        
+        cout << "\nНажмите Enter для продолжения...";
+        cin.ignore();
+        cin.get();
+    }
+    
+    return 0;
 }
